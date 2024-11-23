@@ -11,44 +11,49 @@ def split_text_into_parts(text, num_parts=3):
     
     # Split into sentences
     sentences = []
-    current_sentence = ""
+    temp_sentence = ""
     
     for char in text:
-        current_sentence += char
+        temp_sentence += char
         if char == '.' and not (
-            re.search(r'\b[A-Z]\.$', current_sentence) or
-            re.search(r'\b[A-Z][a-z]+\.$', current_sentence) or
-            re.search(r'\d+\.$', current_sentence)
+            re.search(r'\b[A-Z]\.$', temp_sentence) or
+            re.search(r'\b[A-Z][a-z]+\.$', temp_sentence) or
+            re.search(r'\d+\.$', temp_sentence)
         ):
-            sentences.append(current_sentence.strip())
-            current_sentence = ""
+            sentences.append(temp_sentence.strip())
+            temp_sentence = ""
     
-    if current_sentence:
-        sentences.append(current_sentence.strip())
+    if temp_sentence.strip():
+        sentences.append(temp_sentence.strip())
     
-    # Calculate target length for each part
-    total_length = sum(len(s) for s in sentences)
-    target_length = total_length / num_parts
+    # Ensure we have enough sentences to distribute
+    if len(sentences) < num_parts:
+        return [" ".join(sentences)] + [""] * (num_parts - 1)
+    
+    # Calculate approximate number of sentences per part
+    total_sentences = len(sentences)
+    sentences_per_part = total_sentences // num_parts
     
     # Distribute sentences into parts
     parts = []
-    current_part = []
-    current_length = 0
+    start_idx = 0
     
-    for sentence in sentences:
-        current_part.append(sentence)
-        current_length += len(sentence)
+    for i in range(num_parts):
+        if i == num_parts - 1:
+            # Last part gets all remaining sentences
+            part_sentences = sentences[start_idx:]
+        else:
+            # Calculate end index for current part
+            end_idx = start_idx + sentences_per_part
+            # Adjust for the last part to ensure all sentences are used
+            if i == num_parts - 2:
+                remaining_sentences = total_sentences - end_idx - sentences_per_part
+                if remaining_sentences < sentences_per_part // 2:
+                    end_idx += remaining_sentences
+            part_sentences = sentences[start_idx:end_idx]
+            start_idx = end_idx
         
-        if current_length >= target_length and len(parts) < num_parts - 1:
-            parts.append(" ".join(current_part))
-            current_part = []
-            current_length = 0
-    
-    if current_part:
-        parts.append(" ".join(current_part))
-    
-    while len(parts) < num_parts:
-        parts.append("")
+        parts.append(" ".join(part_sentences))
     
     return parts
 
@@ -92,7 +97,7 @@ def main():
         
         for i, (tab, part) in enumerate(zip(tabs, parts), 1):
             with tab:
-                percentage = (len(part) / total_chars) * 100
+                percentage = (len(part) / total_chars) * 100 if total_chars > 0 else 0
                 st.markdown(f"### Parte {i}")
                 st.text_area(
                     f"Contenido de la parte {i}:",
